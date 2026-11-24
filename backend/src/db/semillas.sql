@@ -2,6 +2,75 @@
 -- DATOS REALES DEL INSTITUTO (SEMILLAS) - ACCESSIROUTE
 -- =====================================================
 
+-- =====================================================
+-- ESQUEMA DE LA BASE DE DATOS (extraído de la BD real: accessiroute)
+-- Idempotente: se puede ejecutar varias veces sin error.
+-- =====================================================
+
+-- Tipos de incidencia (catálogo)
+CREATE TABLE IF NOT EXISTS tipos_incidencia (
+    id          VARCHAR(30)  NOT NULL,
+    nombre      VARCHAR(50)  NOT NULL,
+    descripcion TEXT,
+    color       VARCHAR(20)  DEFAULT '#f59e0b',
+    CONSTRAINT tipos_incidencia_pkey PRIMARY KEY (id)
+);
+
+-- Espacios del instituto (nodos del grafo)
+CREATE TABLE IF NOT EXISTS espacios (
+    id           VARCHAR(50)  NOT NULL,
+    nombre       VARCHAR(100) NOT NULL,
+    bloque       CHAR(1)      NOT NULL,
+    planta       INTEGER      NOT NULL,
+    tipo         VARCHAR(30)  NOT NULL,
+    es_accesible BOOLEAN      DEFAULT true,
+    coord_x      DOUBLE PRECISION,
+    coord_y      DOUBLE PRECISION,
+    CONSTRAINT espacios_pkey PRIMARY KEY (id)
+);
+
+-- Conexiones entre espacios (aristas del grafo)
+CREATE TABLE IF NOT EXISTS conexiones (
+    id                 SERIAL      NOT NULL,
+    id_espacio_origen  VARCHAR(50),
+    id_espacio_destino VARCHAR(50),
+    tipo_conexion      VARCHAR(30) NOT NULL,
+    es_accesible       BOOLEAN     DEFAULT true,
+    CONSTRAINT conexiones_pkey PRIMARY KEY (id),
+    CONSTRAINT conexion_unica UNIQUE (id_espacio_origen, id_espacio_destino),
+    CONSTRAINT conexiones_id_espacio_origen_fkey
+        FOREIGN KEY (id_espacio_origen)  REFERENCES espacios(id) ON DELETE CASCADE,
+    CONSTRAINT conexiones_id_espacio_destino_fkey
+        FOREIGN KEY (id_espacio_destino) REFERENCES espacios(id) ON DELETE CASCADE
+);
+
+-- Incidencias reportadas
+CREATE TABLE IF NOT EXISTS incidencias (
+    id               SERIAL      NOT NULL,
+    id_espacio       VARCHAR(50),
+    tipo             VARCHAR(30) NOT NULL,
+    descripcion      TEXT,
+    estado           VARCHAR(20) DEFAULT 'activa',
+    fecha_incidencia TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT incidencias_pkey PRIMARY KEY (id),
+    CONSTRAINT incidencias_id_espacio_fkey
+        FOREIGN KEY (id_espacio) REFERENCES espacios(id) ON DELETE CASCADE,
+    CONSTRAINT fk_incidencias_tipo
+        FOREIGN KEY (tipo) REFERENCES tipos_incidencia(id) ON UPDATE CASCADE
+);
+
+-- Usuarios (administración)
+CREATE TABLE IF NOT EXISTS usuarios (
+    id             SERIAL       NOT NULL,
+    nombre_usuario VARCHAR(50)  NOT NULL,
+    password_hash  VARCHAR(255) NOT NULL,
+    rol            VARCHAR(20)  DEFAULT 'admin',
+    creado_en      TIMESTAMP WITHOUT TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT usuarios_pkey PRIMARY KEY (id),
+    CONSTRAINT usuarios_nombre_usuario_key UNIQUE (nombre_usuario)
+);
+
+
 -- 1. INSERTAR ESPACIOS
 INSERT INTO espacios (id, nombre, bloque, planta, tipo, es_accesible, coord_x, coord_y) VALUES
 -- =====================================================
@@ -59,7 +128,7 @@ INSERT INTO espacios (id, nombre, bloque, planta, tipo, es_accesible, coord_x, c
 ('B-P1-AULA-04',      'Aula B-04',                     'B', 1, 'aula',     true, 1027,  60),
 ('B-P1-BANO',         'Baño Bloque B (Planta 1)',        'B', 1, 'bano',     true,  920,  62),
 ('B-P1-ESCALERA',     'Escalera Bloque B (Planta 1)',    'B', 1, 'escalera', false,  996,  80),
-('B-P1-ASCENSOR',     'Ascensor Bloque B (Planta 1)',    'B', 1, 'ascensor', true,  620, 650),
+('B-P1-ASCENSOR',     'Ascensor Bloque B (Planta 1)',    'B', 1, 'ascensor', true,  980, 189),
 
 ('B-P2-PASILLO',      'Pasillo Bloque B (Planta 2)',     'B', 2, 'pasillo',  true,  982, 109),
 ('B-P2-ESCALERA',     'Escalera Bloque B (Planta 2)',    'B', 2, 'escalera', false, 1021,  45),
@@ -74,7 +143,7 @@ INSERT INTO espacios (id, nombre, bloque, planta, tipo, es_accesible, coord_x, c
 -- =====================================================
 -- BLOQUE C - DIRECCIÓN / SECRETARÍA (PLANTA ÚNICA)
 -- =====================================================
-('C-P1-ENTRADA',      'Entrada Bloque C (Dirección)',   'C', 1, 'entrada',   true,  951, 379),
+('C-P1-ENTRADA',      'Entrada Bloque C (Dirección)',   'C', 1, 'entrada',   true,  750, 370),
 ('C-P1-DIRECCION',    'Despacho de Dirección',          'C', 1, 'direccion', true,  807, 310),
 ('C-P1-SECRETARIA',   'Secretaría General',             'C', 1, 'direccion', true,  756, 312),
 
@@ -88,7 +157,14 @@ INSERT INTO espacios (id, nombre, bloque, planta, tipo, es_accesible, coord_x, c
 -- ZONA EXTERIOR - PATIO CENTRAL (Conecta los 4 bloques)
 -- =====================================================
 ('EXT-PATIO',         'Patio Central del Instituto',           'A', 1, 'pasillo',  true,  953, 308)
-ON CONFLICT (id) DO UPDATE SET coord_x = EXCLUDED.coord_x, coord_y = EXCLUDED.coord_y;
+ON CONFLICT (id) DO UPDATE SET
+  nombre       = EXCLUDED.nombre,
+  bloque       = EXCLUDED.bloque,
+  planta       = EXCLUDED.planta,
+  tipo         = EXCLUDED.tipo,
+  es_accesible = EXCLUDED.es_accesible,
+  coord_x      = EXCLUDED.coord_x,
+  coord_y      = EXCLUDED.coord_y;
 
 
 -- =====================================================
@@ -261,4 +337,3 @@ ON CONFLICT (id) DO UPDATE SET
   nombre = EXCLUDED.nombre,
   descripcion = EXCLUDED.descripcion,
   color = EXCLUDED.color;
-
