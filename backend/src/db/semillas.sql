@@ -4,6 +4,7 @@
 
 -- =====================================================
 -- ESQUEMA DE LA BASE DE DATOS (extraído de la BD real: accessiroute)
+-- Idempotente: se puede ejecutar varias veces sin error.
 -- =====================================================
 
 -- Tipos de incidencia (catálogo)
